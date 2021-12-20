@@ -1,0 +1,70 @@
+import requests
+from bs4 import BeautifulSoup
+
+
+URL = 'https://auto.ria.com/car/hummer/'
+# что бы сервер не посчитал на за ботов с помощью HEADERS  имитируем работу браузера
+HEADERS ={'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36'
+}
+# с помощью библиотеки requests и метода get выгружаем данные страницы в html формате
+def get_html (url, params = None):
+    r = requests.get (url, headers=HEADERS, params=params) #url -адрес, headers
+    return r
+    
+# скачиваем все страницы по запросу    
+def get_pages_count (html):
+    soup = BeautifulSoup(html, 'html.parser' ) # объект с которым работаем
+    pagination = soup.find_all('span', class_ ='mhide')
+    if pagination:
+        return int(pagination [-1].get_text())
+    else:
+        return 1
+    print (pagination)
+    
+
+# с помощью библиотеки  BeautifulSoup распарсим, напишем функцию get_contact, принимает html для работы
+
+def get_content(html):
+    soup = BeautifulSoup (html, 'html.parser' )
+    items = soup.find_all('div', class_ = 'content-bar') #получаем class карточки товара
+    
+    cars = []         # записываем все в словарь
+    for item in items:
+        uah_price = item.find('span', class_ = 'i-block')
+        if uah_price:
+            uah_price = uah_price.get_text()
+        else:
+            uah_price = 'Цену уточняйте'
+            
+            
+        cars.append({
+            'title': item.find('a', class_ = 'address').get_text(), # вынимаю заголовки, метод get_text получаю текст, (strip = True) обрезает концевые пробелы
+            'link': item.find('a', class_ = 'm-link-ticket').get ('href'),
+            'Price_USD': item.find('span', class_ = 'bold green size22', ).get_text(),
+            'Price_ГРН': item.find('span', class_ = 'i-block', ).get_text()
+        })
+    print (cars)
+    #cars =  DataFrame(cars)
+    #print (cars) 
+    
+    #print (items) # печатает все
+
+# возвращаем r объект нашего запроса и использован в фунции parse()
+# парсинг запускаем по циклу, сколько у нас страниц
+def parse():
+    html = get_html(URL) # создаем переменную html и передадим ей нашу переменную get_html
+    if html.status_code == 200:
+        cars = []
+        pages_count = get_pages_count(html.text)
+        print (html.status_code)
+        for page in range (1, pages_count +1):
+            print (f'Парсинг страницы {page} из {pages_count}...') # сообщаем пользователю, что идет парсинг страницы
+            html = get_html(URL, params = {'page': page})
+            cars.extend(get_content(html.text)).prettify()# методом extend расширяем список cars
+            print (cars)
+            print(len(cars))
+        #get_content(html.text) # передаем функции объект get_content, т.е. html с функцией text        
+        else:
+            print ('Error')
+        
+parse()   
